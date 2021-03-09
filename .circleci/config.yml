@@ -19,6 +19,7 @@ jobs:
           key: source-{{ .Branch }}-{{ .Revision }}
           paths:
             - "~/repo"
+
   install:
     <<: *defaults
     steps:
@@ -51,9 +52,9 @@ jobs:
   deploy:
     <<: *defaults
     environment:
-      - STAGING_BUCKET: "YOUR_STAGING_BUCKET_NAME"
+      - STAGING_BUCKET: "test.resourcenetwork.co"
       - PRODUCTION_BUCKET: "YOUR_PRODUCTION_BUCKET_NAME"
-      - STAGING_DISTRIBUTION_ID: "YOUR_STAGING_DISTRIBUTION_ID"
+      - STAGING_DISTRIBUTION_ID: "E25FPA2C681YIW"
       - PRODUCTION_DISTRIBUTION_ID: "YOUR_PRODUCTION_DISTRIBUTION_ID"
     steps:
       - attach_workspace:
@@ -67,7 +68,7 @@ jobs:
       - run:
           name: "Deploy to S3"
           command: |
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+            if [ "${CIRCLE_BRANCH}" == "main" ]; then
               aws s3 sync dist/ s3://${PRODUCTION_BUCKET} --delete
               aws cloudfront create-invalidation --distribution-id "${PRODUCTION_DISTRIBUTION_ID}" --paths /index.html
             elif [ "${CIRCLE_BRANCH}" == "staging" ]; then
