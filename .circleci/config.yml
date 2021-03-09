@@ -83,13 +83,9 @@ workflows:
       - install:
           requires:
             - checkout_code
-      - test:
-          requires:
-            - install
       - build:
           requires:
             - install
       - deploy:
           requires:
-            - test
             - build
