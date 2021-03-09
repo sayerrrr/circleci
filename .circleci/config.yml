@@ -3,6 +3,8 @@ defaults: &defaults
   docker:
     - image: circleci/node:14
 version: 2
+orbs:
+  aws-cli: circleci/aws-cli@1.4.0
 jobs:
   checkout_code:
     <<: *defaults
@@ -51,6 +53,7 @@ jobs:
             - package.json
   deploy:
     <<: *defaults
+    executor: aws-cli/default
     environment:
       - STAGING_BUCKET: "test.resourcenetwork.co"
       - PRODUCTION_BUCKET: "YOUR_PRODUCTION_BUCKET_NAME"
@@ -59,10 +62,6 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/repo
-      - run: sudo apt-get update && sudo apt-get install -y python-dev
-      - run: sudo curl -O https://bootstrap.pypa.io/pip/2.7/get-pip.py
-      - run: sudo python get-pip.py
-      - run: sudo pip install awscli --upgrade
       - run: aws --version
       - run: aws s3 ls
       - run:
