@@ -82,8 +82,6 @@ jobs:
     environment:
       - STAGING_BUCKET: "test.resourcenetwork.co"
       - PRODUCTION_BUCKET: "test.resourcenetwork.co"
-      - STAGING_DISTRIBUTION_ID: "E25FPA2C681YIW"
-      - PRODUCTION_DISTRIBUTION_ID: "E25FPA2C681YIW"
     steps:
       - attach_workspace:
           at: .
@@ -97,10 +95,8 @@ jobs:
           command: |
             if [ "${CIRCLE_BRANCH}" == "main" ]; then 
               aws s3 sync ./build s3://${PRODUCTION_BUCKET} --delete
-              aws cloudfront create-invalidation --distribution-id "${PRODUCTION_DISTRIBUTION_ID}" --paths /index.html
             elif [ "${CIRCLE_BRANCH}" == "staging" ]; then
               aws s3 sync ./build s3://${STAGING_BUCKET} --delete
-              aws cloudfront create-invalidation --distribution-id "${STAGING_DISTREBUTION_ID}" --paths /index.html
             fi
 
 workflows:
