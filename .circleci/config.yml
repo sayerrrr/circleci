@@ -34,6 +34,7 @@ jobs:
           root: .
           paths:
             - .
+
   apply:
     docker:
       - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
@@ -49,17 +50,19 @@ jobs:
           paths:
             - .
   install:
-    - restore_cache:
-        key: source-{{ .Branch }}-{{ .Revision }}
-    - restore_cache:
-        key: dependency-cache-{{ checksum "package.json" }}
-    - run:
-        name: "NPM install"
-        command: npm install
-    - save_cache:
-        key: dependency-cache-{{ checksum "package.json" }}
-        paths:
-          - node_modules
+    <<: *defaults
+    steps:
+      - restore_cache:
+          key: source-{{ .Branch }}-{{ .Revision }}
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: "NPM install"
+          command: npm install
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - node_modules
   build:
     <<: *defaults
     steps:
@@ -105,14 +108,6 @@ workflows:
   build_and_test:
     jobs:
       - checkout_code
-      - plan-apply
-      - hold-apply:
-          type: approval
-          requires:
-            - plan-apply
-      - apply:
-          requires:
-            - hold-apply
       - install:
           requires:
             - checkout_code
