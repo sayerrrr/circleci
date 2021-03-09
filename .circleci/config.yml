@@ -108,6 +108,14 @@ workflows:
   build_and_test:
     jobs:
       - checkout_code
+      - plan-apply
+      - hold-apply:
+          type: approval
+          requires:
+            - plan-apply
+      - apply:
+          requires:
+            - hold-apply
       - install:
           requires:
             - checkout_code
