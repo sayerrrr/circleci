@@ -10,31 +10,59 @@ terraform {
 }
 
 provider "aws" {
-  region  = "us-east-1"
-  alias = "virginia"
+  region = "us-east-2"
+}
+provider "aws" {
+  region = "us-east-2"
+  alias = "ohio"
 }
 
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-
-
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
   acl    = "public-read"
   policy = <<POLICY
 {
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Sid": "PublicReadGetObject",
-			"Effect": "Allow",
-			"Principal": "*",
-			"Action": "s3:GetObject",
-			"Resource": "arn:aws:s3:::${var.bucket_name}/*"
-		}
-	]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::${var.bucket_name}/*",
+            "Condition": {
+                "IpAddress": {
+                    "aws:SourceIp": [
+                        "2400:cb00::/32",
+                        "2405:8100::/32",
+                        "2405:b500::/32",
+                        "2606:4700::/32",
+                        "2803:f800::/32",
+                        "2c0f:f248::/32",
+                        "2a06:98c0::/29",
+                        "103.21.244.0/22",
+                        "103.22.200.0/22",
+                        "103.31.4.0/22",
+                        "104.16.0.0/12",
+                        "108.162.192.0/18",
+                        "131.0.72.0/22",
+                        "141.101.64.0/18",
+                        "162.158.0.0/15",
+                        "172.64.0.0/13",
+                        "173.245.48.0/20",
+                        "188.114.96.0/20",
+                        "190.93.240.0/20",
+                        "197.234.240.0/22",
+                        "198.41.128.0/17"
+                    ]
+                }
+            }
+        }
+    ]
 }
 POLICY
   website {
@@ -45,98 +73,10 @@ POLICY
   tags = var.tags
 }
 
-
-resource "aws_acm_certificate" "cert" {
-  provider          = aws.virginia
-  domain_name       = var.domain_name
-  validation_method = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = var.tags
-}
-
-
-resource "cloudflare_record" "acm" {
-  depends_on = [aws_acm_certificate.cert]
-
-  zone_id = var.cloudflare_zone_id
-
-  for_each = {
-    for dvo in aws_acm_certificate.cert.domain_validation_options: dvo.domain_name => {
-      name   = dvo.resource_record_name
-      value = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
-
-  name            = each.value.name
-  value           = each.value.value
-  type            = each.value.type
-  ttl             = 60
-}
-
-resource "aws_acm_certificate_validation" "cert" {
-  provider   = aws.virginia
-  depends_on = [aws_acm_certificate.cert]
-
-  certificate_arn = aws_acm_certificate.cert.arn
-}
-
-resource "aws_cloudfront_distribution" "dist" {
-  depends_on = [aws_s3_bucket.bucket, aws_acm_certificate_validation.cert]
-
-  origin {
-    domain_name = aws_s3_bucket.bucket.bucket_regional_domain_name
-    origin_id   = "S3-${var.bucket_name}"
-  }
-
-  enabled             = true
-  is_ipv6_enabled     = true
-  default_root_object = var.index_document
-
-  aliases = [var.domain_name]
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-
-  default_cache_behavior {
-    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${var.bucket_name}"
-
-    forwarded_values {
-      query_string = false
-
-      cookies {
-        forward = "none"
-      }
-    }
-
-    viewer_protocol_policy = "allow-all"
-    min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
-  }
-
-  viewer_certificate {
-    acm_certificate_arn = aws_acm_certificate_validation.cert.certificate_arn
-    ssl_support_method  = "sni-only"
-  }
-
-  tags = var.tags
-}
-
 resource "cloudflare_record" "cname" {
-  depends_on = [aws_cloudfront_distribution.dist]
-
   zone_id = var.cloudflare_zone_id
   name    = var.domain_name
-  value   = aws_cloudfront_distribution.dist.domain_name
+  value = aws_s3_bucket.bucket.website_endpoint
   type    = "CNAME"
+  proxied = true
 }
