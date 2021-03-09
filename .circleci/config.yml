@@ -18,7 +18,7 @@ jobs:
       - save_cache:
           key: source-{{ .Branch }}-{{ .Revision }}
           paths:
-            - "~/repo"
+            - .
 
   install:
     <<: *defaults
@@ -45,10 +45,9 @@ jobs:
           name: "Build app"
           command: npm run build
       - persist_to_workspace:
-          root: ~/repo
+          root: .
           paths:
-            - dist
-            - package.json
+            - .
   deploy:
     <<: *defaults
     environment:
@@ -58,7 +57,7 @@ jobs:
       - PRODUCTION_DISTRIBUTION_ID: "YOUR_PRODUCTION_DISTRIBUTION_ID"
     steps:
       - attach_workspace:
-          at: ~/repo
+          at: .
       - run: sudo apt-get update && sudo apt-get install -y python-dev
       - run: sudo curl -O https://bootstrap.pypa.io/pip/2.7/get-pip.py
       - run: sudo python get-pip.py
@@ -69,10 +68,11 @@ jobs:
           name: "Deploy to S3"
           command: |
             if [ "${CIRCLE_BRANCH}" == "main" ]; then
-              aws s3 sync ~/repo/dist/ s3://${PRODUCTION_BUCKET} --delete
+              echo 
+              aws s3 sync ./build s3://${PRODUCTION_BUCKET} --delete
               aws cloudfront create-invalidation --distribution-id "${PRODUCTION_DISTRIBUTION_ID}" --paths /index.html
             elif [ "${CIRCLE_BRANCH}" == "staging" ]; then
-              aws s3 sync ~/repo/dist/ s3://${STAGING_BUCKET} --delete
+              aws s3 sync ./build s3://${STAGING_BUCKET} --delete
               aws cloudfront create-invalidation --distribution-id "${STAGING_DISTREBUTION_ID}" --paths /index.html
             fi
 
