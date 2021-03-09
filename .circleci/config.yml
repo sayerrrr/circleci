@@ -3,8 +3,7 @@ defaults: &defaults
   docker:
     - image: circleci/node:14
 version: 2
-orbs:
-  aws-cli: circleci/aws-cli@1.4.0
+
 jobs:
   checkout_code:
     <<: *defaults
@@ -77,6 +76,8 @@ jobs:
 
 workflows:
   version: 2
+  orbs:
+  aws-cli: circleci/aws-cli@1.4.0
   build_and_test:
     jobs:
       - checkout_code
