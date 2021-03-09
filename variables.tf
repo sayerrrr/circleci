@@ -29,3 +29,8 @@ variable "cloudflare_api_token" {
   description = "API Token to edit zone DNS via Cloudflare"
   type        = string
 }
+
+variable "user" {
+  description = "AWS user to create"
+  type        = string
+}

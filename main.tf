@@ -18,9 +18,33 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-/* ======= Steps ======= */
+resource "aws_iam_user" "circleci" {
+  name = var.user
+  path = "/system/"
+}
 
-/* 1. Create bucket for storing static website files */
+resource "aws_iam_access_key" "circleci" {
+  user = aws_iam_user.circleci.name
+}
+
+data "template_file" "circleci_policy" {
+  template = file("access_policy.json")
+  vars = {
+    s3_bucket_arn = aws_s3_bucket.bucket.arn
+  }
+}
+
+resource "local_file" "circle_credentials" {
+  filename = "tmp/circleci_credentials"
+  content  = "${aws_iam_access_key.circleci.id}\n${aws_iam_access_key.circleci.secret}"
+}
+
+resource "aws_iam_user_policy" "circleci" {
+  name   = "AllowCircleCI"
+  user   = aws_iam_user.circleci.name
+  policy = data.template_file.circleci_policy.rendered
+}
+
 resource "aws_s3_bucket" "bucket" {
   bucket = var.bucket_name
   acl    = "public-read"
@@ -47,7 +71,6 @@ POLICY
 }
 
 
-/* 2. Provision ACM certificate to verify domains */
 resource "aws_acm_certificate" "cert" {
   provider          = aws.virginia
   domain_name       = var.domain_name
@@ -61,7 +84,6 @@ resource "aws_acm_certificate" "cert" {
 }
 
 
-/* 3. Provision ACM validation record via cloudflare */
 resource "cloudflare_record" "acm" {
   depends_on = [aws_acm_certificate.cert]
 
@@ -81,7 +103,6 @@ resource "cloudflare_record" "acm" {
   ttl             = 60
 }
 
-/* 3. ACM Validation after adding DNS record */
 resource "aws_acm_certificate_validation" "cert" {
   provider   = aws.virginia
   depends_on = [aws_acm_certificate.cert]
@@ -89,7 +110,6 @@ resource "aws_acm_certificate_validation" "cert" {
   certificate_arn = aws_acm_certificate.cert.arn
 }
 
-/* 4. Provision cloudfront distribution infront of S3 bucket */
 resource "aws_cloudfront_distribution" "dist" {
   depends_on = [aws_s3_bucket.bucket, aws_acm_certificate_validation.cert]
 
@@ -137,7 +157,6 @@ resource "aws_cloudfront_distribution" "dist" {
   tags = var.tags
 }
 
-/* 5. Add CNAME record to Cloudflare DNS which points to the newly created cloudfront distribution */
 resource "cloudflare_record" "cname" {
   depends_on = [aws_cloudfront_distribution.dist]
 
